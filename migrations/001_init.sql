@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, type TEXT NOT NULL, timestamp TEXT NOT NULL, agent TEXT NOT NULL, session TEXT, project TEXT, payload TEXT, source TEXT, raw TEXT, schema_version INTEGER NOT NULL DEFAULT 1);
+CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
+CREATE INDEX IF NOT EXISTS idx_events_agent ON events(agent);
+CREATE INDEX IF NOT EXISTS idx_events_session ON events(session);
+CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
+CREATE INDEX IF NOT EXISTS idx_events_agent_ts ON events(agent, timestamp);
+CREATE INDEX IF NOT EXISTS idx_events_project_ts ON events(project, timestamp);
+CREATE INDEX IF NOT EXISTS idx_events_type_ts ON events(type, timestamp);
+CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, agent_id TEXT, project_id TEXT, started_at TEXT, ended_at TEXT);
+CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, path TEXT, name TEXT);
+CREATE TABLE IF NOT EXISTS agents (id TEXT PRIMARY KEY, name TEXT, version TEXT);
+CREATE TABLE IF NOT EXISTS tool_calls (id TEXT PRIMARY KEY, event_id TEXT REFERENCES events(id), tool TEXT NOT NULL, status TEXT, duration_ms INTEGER, timestamp TEXT);
+CREATE INDEX IF NOT EXISTS idx_tool_calls_tool ON tool_calls(tool);
+CREATE TABLE IF NOT EXISTS generations (id TEXT PRIMARY KEY, event_id TEXT REFERENCES events(id), model TEXT, input_tokens INTEGER DEFAULT 0, output_tokens INTEGER DEFAULT 0, cached_tokens INTEGER DEFAULT 0, reasoning_tokens INTEGER DEFAULT 0, latency_ms INTEGER, timestamp TEXT);
+INSERT OR IGNORE INTO schema_version(version, applied_at) VALUES(1, datetime('now'));

@@ -1,0 +1,9 @@
+# build artifacts
+/mtrx
+/mtrx.exe
+/dist/
+
+# local data (never commit user telemetry)
+*.db
+*.db-shm
+*.db-wal
