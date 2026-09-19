@@ -1,12 +1,12 @@
 BINARY=mtrx
 PKG=./cmd/mtrx
-VERSION?=0.1.0
-LDFLAGS=-X main.version=$(VERSION)
+VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo 0.1.0)
+LDFLAGS=-s -w -X main.version=$(VERSION)
 
-.PHONY: build install test lint clean
+.PHONY: build install test lint cross package clean
 
 build:
-	go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG)
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG)
 
 install:
 	go install -ldflags "$(LDFLAGS)" $(PKG)
@@ -18,11 +18,21 @@ lint:
 	go vet ./...
 
 cross:
-	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-amd64 $(PKG)
-	GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-arm64 $(PKG)
-	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-darwin-amd64 $(PKG)
-	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-darwin-arm64 $(PKG)
-	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-windows-amd64.exe $(PKG)
+	mkdir -p dist
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-amd64 $(PKG)
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-arm64 $(PKG)
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-darwin-amd64 $(PKG)
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-darwin-arm64 $(PKG)
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-windows-amd64.exe $(PKG)
+	$(MAKE) package
+
+package:
+	tar -czf dist/$(BINARY)-linux-amd64.tar.gz -C dist $(BINARY)-linux-amd64
+	tar -czf dist/$(BINARY)-linux-arm64.tar.gz -C dist $(BINARY)-linux-arm64
+	tar -czf dist/$(BINARY)-darwin-amd64.tar.gz -C dist $(BINARY)-darwin-amd64
+	tar -czf dist/$(BINARY)-darwin-arm64.tar.gz -C dist $(BINARY)-darwin-arm64
+	zip -j dist/$(BINARY)-windows-amd64.zip dist/$(BINARY)-windows-amd64.exe
+	sha256sum dist/*.tar.gz dist/*.zip > dist/sha256sums.txt
 
 clean:
 	rm -rf $(BINARY) dist/

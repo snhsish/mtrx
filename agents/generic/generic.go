@@ -14,8 +14,8 @@ import (
 
 type Adapter struct{}
 
-func (a *Adapter) ID() string   { return "generic" }
-func (a *Adapter) Name() string { return "Generic" }
+func (a *Adapter) ID() string                               { return "generic" }
+func (a *Adapter) Name() string                             { return "Generic" }
 func (a *Adapter) Detect(ctx context.Context) (bool, error) { return true, nil }
 func (a *Adapter) Sources() []agents.Source                 { return nil }
 func (a *Adapter) Collect(ctx context.Context, src agents.Source) ([]events.Event, error) {

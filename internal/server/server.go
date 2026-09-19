@@ -55,6 +55,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/v1/metrics/overview", s.handleOverview)
 	s.mux.HandleFunc("/api/metrics/tokens", s.handleTokens)
 	s.mux.HandleFunc("/api/v1/metrics/tokens", s.handleTokens)
+	s.mux.HandleFunc("/api/metrics/tokens/live", s.handleTokensLive)
+	s.mux.HandleFunc("/api/v1/metrics/tokens/live", s.handleTokensLive)
 	s.mux.HandleFunc("/api/metrics/activity", s.handleActivity)
 	s.mux.HandleFunc("/api/v1/metrics/activity", s.handleActivity)
 	s.mux.HandleFunc("/api/metrics/tools", s.handleTools)
@@ -307,6 +309,14 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleTokens(w http.ResponseWriter, r *http.Request) {
 	f := parseFilter(r)
 	data, _ := analytics.TokensByDayFiltered(s.db, f)
+	writeJSON(w, data)
+}
+
+func (s *Server) handleTokensLive(w http.ResponseWriter, r *http.Request) {
+	from := time.Now().Add(-5 * time.Hour).UTC().Format(time.RFC3339)
+	to := time.Now().UTC().Format(time.RFC3339)
+	f := analytics.Filter{From: from, To: to}
+	data, _ := analytics.TokensByHourFiltered(s.db, f)
 	writeJSON(w, data)
 }
 
