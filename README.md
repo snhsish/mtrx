@@ -7,6 +7,9 @@ OpenCode, Cursor, and more), stores it in a local database, and serves a dashboa
 to explore token usage, cost estimates, and model breakdowns. Nothing leaves your
 machine. No accounts, no cloud, no uploaded session data.
 
+<img width="1144" height="979" alt="image" src="https://github.com/user-attachments/assets/a468e95a-aede-45cd-aaf3-8c3616b14e65" />
+
+
 ```
 go build -o mtrx ./cmd/mtrx
 ./mtrx              # starts the server and opens http://localhost:6767
@@ -45,21 +48,32 @@ is nothing to configure per agent.
 
 ## Install
 
-From source:
+No Go required. Download a prebuilt binary from the
+[releases page](https://github.com/snhsish/mtrx/releases) or install with:
+
+Linux / macOS:
+
+```
+curl -fsSL https://raw.githubusercontent.com/snhsish/mtrx/main/scripts/install.sh | sh
+```
+
+Windows (PowerShell):
+
+```
+irm https://raw.githubusercontent.com/snhsish/mtrx/main/scripts/install.ps1 | iex
+```
+
+Pick a version with `MTRX_VERSION=vX.Y.Z` (prefix for `sh`, `$env:MTRX_VERSION`
+for PowerShell). Tarballs, zips, and `sha256sums.txt` are attached to each
+`v*` tag release. Verify with `sha256sum -c sha256sums.txt`, then `mtrx version`.
+
+From source (requires Go 1.26+):
 
 ```
 git clone https://github.com/snhsish/mtrx
 cd mtrx
 go build -o mtrx ./cmd/mtrx
 ```
-
-With go install:
-
-```
-go install mtrx/cmd/mtrx@latest
-```
-
-Prebuilt binaries for Linux, macOS, and Windows are on the releases page.
 
 ## Quick start
 
