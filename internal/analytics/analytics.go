@@ -358,7 +358,10 @@ func ToolsStatsFiltered(db *sql.DB, f Filter) ([]ToolStat, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	m := map[string]*struct{ count, success int64; dur int64 }{}
+	m := map[string]*struct {
+		count, success int64
+		dur            int64
+	}{}
 	for rows.Next() {
 		var typ, payload sql.NullString
 		_ = rows.Scan(&typ, &payload)
@@ -386,7 +389,10 @@ func ToolsStatsFiltered(db *sql.DB, f Filter) ([]ToolStat, error) {
 		}
 		e := m[tool]
 		if e == nil {
-			e = &struct{ count, success int64; dur int64 }{}
+			e = &struct {
+				count, success int64
+				dur            int64
+			}{}
 			m[tool] = e
 		}
 		e.count++
