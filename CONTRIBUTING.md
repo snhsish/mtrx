@@ -25,7 +25,7 @@ make cross     # build all platforms into dist/ with checksums
 
 ## How the code is laid out
 
-- `agents/<name>/` collectors that read one agent's local files and return
+- `agents/<name>/` collectors read one agent's local files and return
   normalized events. All collectors follow `internal/agents/adapter.go`.
 - `internal/collectors/` runs collectors on a timer and writes events to SQLite.
 - `internal/database/` opens and migrates the SQLite file.
@@ -33,6 +33,7 @@ make cross     # build all platforms into dist/ with checksums
 - `internal/server/` serves the JSON API and the embedded dashboard.
 - `cmd/mtrx/` is the CLI. The dashboard files are embedded, so the build
   gives one binary with nothing else to install.
+- `docs/` has deeper notes on adapters, events, the API, and architecture.
 
 ## Commits
 
@@ -94,10 +95,11 @@ go test ./...
 - No new third party deps without a good reason. Say why in the pull request.
 - Follow the patterns already in the file you edit (naming, error strings,
   struct shapes).
-- Keep functions small. Return errors with context (`fmt.Errorf("...: %w", err)`).
+- Keep functions small. Return errors with context
+  (`fmt.Errorf("...: %w", err)`).
 - Never log or store secrets. Agent files can hold credentials, so collectors
   must skip them (see the skip lists in the existing adapters).
-- collectors must never crash on bad input. Skip bad lines, keep going.
+- Collectors must never crash on bad input. Skip bad lines, keep going.
 
 ## Releases
 

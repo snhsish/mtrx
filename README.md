@@ -63,17 +63,32 @@ Windows (PowerShell):
 irm https://raw.githubusercontent.com/snhsish/mtrx/main/scripts/install.ps1 | iex
 ```
 
-Pick a version with `MTRX_VERSION=vX.Y.Z` (prefix for `sh`, `$env:MTRX_VERSION`
-for PowerShell). Tarballs, zips, and `sha256sums.txt` are attached to each
-`v*` tag release. Verify with `sha256sum -c sha256sums.txt`, then `mtrx version`.
+The scripts detect your OS and CPU type and put `mtrx` in
+`/usr/local/bin` (or `~/.local/bin` if that is not writable) on Unix, and in
+`%LocalAppData%\mtrx\bin` on Windows. If that folder is not on your `PATH`,
+add it so you can run `mtrx` from anywhere.
 
-From source (requires Go 1.26+):
+Pin a version instead of latest:
 
 ```
-git clone https://github.com/snhsish/mtrx
-cd mtrx
-go build -o mtrx ./cmd/mtrx
+curl -fsSL https://raw.githubusercontent.com/snhsish/mtrx/main/scripts/install.sh | MTRX_VERSION=vX.Y.Z sh
 ```
+
+```
+$env:MTRX_VERSION = "vX.Y.Z"; irm https://raw.githubusercontent.com/snhsish/mtrx/main/scripts/install.ps1 | iex
+```
+
+Manual download: each release has `mtrx-<os>-<arch>.tar.gz` files for Unix,
+`mtrx-windows-amd64.zip` for Windows, and `sha256sums.txt`. Check the files,
+then install:
+
+```
+sha256sum -c sha256sums.txt
+tar -xzf mtrx-linux-amd64.tar.gz
+./mtrx-linux-amd64 version
+```
+
+Want to build it yourself? See [Building from source](#building-from-source).
 
 ## Quick start
 
@@ -176,14 +191,43 @@ SQLite file. No analytics, no phoning home, no account.
 
 ## Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, and how to send a
+patch.
+
+## Building from source
+
+You need Go 1.26 or newer. No C compiler needed. The SQLite driver is pure
+Go, so a plain `go build` works on Linux, macOS, and Windows.
+
+Build a binary in the repo root:
+
 ```
-make build     # build ./mtrx
-make test      # run tests
-make lint      # go vet + gofmt check
-make cross     # build linux/darwin/windows binaries into dist/
+git clone https://github.com/snhsish/mtrx
+cd mtrx
+go build -o mtrx ./cmd/mtrx
+./mtrx version
 ```
 
-Requires Go 1.26+.
+Or install it to your Go bin dir (keep `$(go env GOPATH)/bin` on your
+`PATH`):
+
+```
+go install github.com/snhsish/mtrx/cmd/mtrx@latest
+```
+
+Common make targets:
+
+```
+make build     # build ./mtrx
+make test      # run all tests
+make lint      # go vet
+make cross     # build all platforms into dist/ with checksums
+```
+
+`make cross` builds Linux and macOS (amd64 and arm64) plus Windows (amd64),
+packs them as `tar.gz` and `zip` files, and writes `dist/sha256sums.txt`. The
+binary version comes from the git tag. The dashboard is embedded in the
+binary, so the single file is all you need to run.
 
 ## Releases
 
