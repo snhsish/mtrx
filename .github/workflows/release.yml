@@ -1,0 +1,142 @@
+name: Release
+
+# Fully automated semver releases, no PAT required (single run: bump, build, publish).
+#
+# - Push to main: next version is derived from conventional commits since the
+#   last tag (feat -> minor, fix/etc -> patch, "!" or BREAKING CHANGE -> major;
+#   first release is v0.1.0), then built and published.
+# - Push a vX.Y.Z tag: that exact version is built and published.
+# - Manual dispatch: optional explicit version or bump override.
+#
+# Commit style: "feat: ...", "fix: ...", "feat(api)!: ..." / "BREAKING CHANGE: ...".
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact version to release (e.g. v1.2.3). Overrides bump."
+        required: false
+      bump:
+        description: "Bump for version calculation"
+        required: false
+        default: auto
+        type: choice
+        options: [auto, major, minor, patch]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Resolve version
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          semver='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          tag=""
+          if [ "$EVENT" = "push" ] && [[ "$REF" == refs/tags/* ]]; then
+            tag="${REF#refs/tags/}"
+            if ! [[ "$tag" =~ $semver ]]; then
+              echo "::error::tag '$tag' is not semver (expected vX.Y.Z)"
+              exit 1
+            fi
+          elif [ -n "$INPUT_VERSION" ]; then
+            tag="$INPUT_VERSION"
+            if ! [[ "$tag" =~ $semver ]]; then
+              echo "::error::version '$tag' is not semver (expected vX.Y.Z)"
+              exit 1
+            fi
+          else
+            last="$(git describe --tags --abbrev=0 --match 'v*.*.*' 2>/dev/null || true)"
+            if [ -n "$last" ] && ! [[ "$last" =~ $semver ]]; then
+              echo "::warning::ignoring non-semver tag '$last'"
+              last=""
+            fi
+            if [ -z "$last" ]; then
+              range="HEAD"
+              maj=0; min=0; pat=0
+              first=1
+            else
+              range="$last..HEAD"
+              v="${last#v}"; maj="${v%%.*}"; rest="${v#*.}"; min="${rest%%.*}"; pat="${rest#*.}"
+              first=0
+              if [ -z "$(git log --format=%s "$range")" ] && [ "$EVENT" = "push" ]; then
+                echo "next_tag=" >> "$GITHUB_OUTPUT"
+                echo "No commits since $last; nothing to release."
+                exit 0
+              fi
+            fi
+            bump="${INPUT_BUMP:-auto}"
+            if [ "$bump" = "auto" ] || [ -z "$bump" ]; then
+              if [ "$first" = "1" ]; then
+                bump="minor"
+              else
+                msgs="$(git log --format=%B "$range")"
+                bump="patch"
+                if printf '%s' "$msgs" | grep -Eq '^[A-Za-z]+(\([^)]*\))?!:|BREAKING[ -]CHANGE'; then
+                  bump="major"
+                elif printf '%s' "$msgs" | grep -Eq '^feat(\([^)]*\))?:'; then
+                  bump="minor"
+                fi
+              fi
+            fi
+            case "$bump" in
+              major) maj=$((maj+1)); min=0; pat=0 ;;
+              minor) min=$((min+1)); pat=0 ;;
+              patch) pat=$((pat+1)) ;;
+              *) echo "::error::unknown bump '$bump'"; exit 1 ;;
+            esac
+            if [ "$first" = "1" ] && [ "$maj" = "0" ] && [ "$min" = "0" ]; then
+              min=1
+            fi
+            tag="v$maj.$min.$pat"
+          fi
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "next_tag=" >> "$GITHUB_OUTPUT"
+            echo "$tag already exists; nothing to release."
+            exit 0
+          fi
+          echo "next_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Releasing $tag"
+
+      - name: Build
+        if: steps.version.outputs.next_tag != ''
+        env:
+          VERSION: ${{ steps.version.outputs.next_tag }}
+        run: make cross
+
+      - name: Smoke test
+        if: steps.version.outputs.next_tag != ''
+        run: ./dist/mtrx-linux-amd64 version
+
+      - name: Publish
+        if: steps.version.outputs.next_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.next_tag }}
+        run: |
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes \
+            dist/*.tar.gz dist/*.zip dist/sha256sums.txt
