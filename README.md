@@ -185,6 +185,16 @@ make cross     # build linux/darwin/windows binaries into dist/
 
 Requires Go 1.26+.
 
+## Releases
+
+Releases are automated: every push to `main` computes the next version from
+conventional commits since the last tag (`feat:` → minor, `fix:` → patch,
+`!` or `BREAKING CHANGE` → major; first release is `v0.1.0`), builds static
+binaries for Linux, macOS (amd64/arm64), and Windows (amd64) via `make cross`,
+and publishes them with checksums to the
+[releases page](https://github.com/snhsish/mtrx/releases). Pushing a `vX.Y.Z`
+tag releases that exact version instead.
+
 ## License
 
 Apache License 2.0. See LICENSE.
