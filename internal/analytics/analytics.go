@@ -210,6 +210,135 @@ func TokensByDayFiltered(db *sql.DB, f Filter) ([]TokenBucket, error) {
 	return out, nil
 }
 
+type HourlyTokenBucket struct {
+	Bucket string  `json:"bucket"`
+	Input  int64   `json:"input"`
+	Output int64   `json:"output"`
+	Total  int64   `json:"total"`
+	Count  int64   `json:"count"`
+	Cost   float64 `json:"cost"`
+}
+
+func TokensByHourFiltered(db *sql.DB, f Filter) ([]HourlyTokenBucket, error) {
+	where, args := buildWhere(f, true)
+	q := `SELECT timestamp, payload, raw FROM events WHERE 1=1` + where + ` ORDER BY timestamp`
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	byHour := map[string]*HourlyTokenBucket{}
+	for rows.Next() {
+		var ts, payload, raw sql.NullString
+		_ = rows.Scan(&ts, &payload, &raw)
+		var p map[string]any
+		hasTokens := false
+		if payload.Valid && payload.String != "" && payload.String != "null" {
+			_ = json.Unmarshal([]byte(payload.String), &p)
+			if p != nil {
+				for _, k := range []string{"input", "output", "input_tokens", "output_tokens", "tokens", "usage"} {
+					if _, ok := p[k]; ok {
+						hasTokens = true
+					}
+				}
+			}
+		}
+		if !hasTokens && raw.Valid && raw.String != "" {
+			var r map[string]any
+			_ = json.Unmarshal([]byte(raw.String), &r)
+			if r != nil {
+				for _, k := range []string{"input", "output", "input_tokens", "tokens", "usage"} {
+					if _, ok := r[k]; ok {
+						if p == nil {
+							p = map[string]any{}
+						}
+						p[k] = r[k]
+						hasTokens = true
+					}
+				}
+				if t, ok := r["tokens"].(map[string]any); ok {
+					if p == nil {
+						p = map[string]any{}
+					}
+					for k, v := range t {
+						if _, exists := p[k]; !exists {
+							p[k] = v
+						}
+					}
+					hasTokens = true
+				}
+				if u, ok := r["usage"].(map[string]any); ok {
+					if p == nil {
+						p = map[string]any{}
+					}
+					for k, v := range u {
+						if _, exists := p[k]; !exists {
+							p[k] = v
+						}
+					}
+					hasTokens = true
+				}
+			}
+		}
+		if !hasTokens || p == nil {
+			continue
+		}
+		if inner, ok := p["tokens"].(map[string]any); ok {
+			for k, v := range inner {
+				if _, exists := p[k]; !exists {
+					p[k] = v
+				}
+			}
+		}
+		hour := ts.String
+		if len(hour) >= 13 {
+			hour = hour[:13] + ":00"
+		}
+		b := byHour[hour]
+		if b == nil {
+			b = &HourlyTokenBucket{Bucket: hour}
+			byHour[hour] = b
+		}
+		b.Input += toInt64(p["input"])
+		b.Output += toInt64(p["output"])
+		if b.Input == 0 {
+			b.Input += toInt64(p["input_tokens"])
+		}
+		if b.Output == 0 {
+			b.Output += toInt64(p["output_tokens"])
+		}
+		cached := toInt64(p["cached_input"])
+		if cached == 0 {
+			cached = toInt64(p["cache_read"])
+		}
+		reason := toInt64(p["reasoning"])
+		if reason == 0 {
+			reason = toInt64(p["reasoning_tokens"])
+		}
+		b.Total = b.Input + b.Output + cached + reason
+		if b.Total == 0 {
+			b.Total = toInt64(p["total"])
+		}
+		b.Cost += toFloat64(p["cost"])
+		if b.Cost == 0 {
+			b.Cost += toFloat64(p["price"])
+		}
+		b.Count++
+	}
+	var out []HourlyTokenBucket
+	for _, v := range byHour {
+		if v.Count == 0 && v.Total == 0 {
+			continue
+		}
+		out = append(out, *v)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Bucket < out[j].Bucket })
+	if out == nil {
+		out = []HourlyTokenBucket{}
+	}
+	return out, nil
+}
+
 type ToolStat struct {
 	Tool        string  `json:"tool"`
 	Calls       int64   `json:"calls"`
