@@ -1,5 +1,9 @@
 # mtrx
 
+[![CI](https://github.com/snhsish/mtrx/actions/workflows/ci.yml/badge.svg)](https://github.com/snhsish/mtrx/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/snhsish/mtrx)](https://github.com/snhsish/mtrx/releases)
+[![License](https://img.shields.io/github/license/snhsish/mtrx)](LICENSE)
+
 Local-first, open-source telemetry and analytics for AI coding agents.
 
 mtrx collects usage data from the AI agents you already run (Claude Code, Codex,
@@ -7,44 +11,24 @@ OpenCode, Cursor, and more), stores it in a local database, and serves a dashboa
 to explore token usage, cost estimates, and model breakdowns. Nothing leaves your
 machine. No accounts, no cloud, no uploaded session data.
 
-<img width="1144" height="979" alt="image" src="https://github.com/user-attachments/assets/a468e95a-aede-45cd-aaf3-8c3616b14e65" />
+<img width="1144" height="979" alt="mtrx dashboard preview" src="https://github.com/user-attachments/assets/a468e95a-aede-45cd-aaf3-8c3616b14e65" />
 
+## Contents
 
-```
-go build -o mtrx ./cmd/mtrx
-./mtrx              # starts the server and opens http://localhost:6767
-```
-
-## Why
-
-Most agent dashboards are hosted services that require an account and upload your
-session data to a third party. mtrx is the opposite: it runs entirely on your
-machine, reads the transcripts your agents already write to disk, and gives you
-the same visibility locally and privately.
-
-## Features
-
-- Multi-agent collection: one process tails each agent's local data and normalizes
-  it into a single event stream.
-- Web dashboard: filter by agent and model, view cumulative token usage, cost
-  breakdown, and per-model tables sortable by price or tokens.
-- CLI-first: every metric is also available from the command line.
-- Local SQLite storage: no external services, no network calls.
-- Cross-platform: Linux, macOS, and Windows.
-
-## Supported agents
-
-| Agent        | Status                                                        |
-| ------------ | ------------------------------------------------------------- |
-| OpenCode     | Full local telemetry (tokens, models, sessions)              |
-| Codex        | Full local telemetry (sessions + state_5.sqlite)              |
-| Claude Code  | Transcripts under ~/.claude/projects                          |
-| Cursor       | Sessions only. Cursor does not store token or cost data locally (see Limitations) |
-| aider        | Detected, collector planned                                  |
-| gemini       | Detected, collector planned                                  |
-
-Collectors run in the background every few seconds after the server starts. There
-is nothing to configure per agent.
+- [Install](#install)
+- [Why](#why)
+- [Features](#features)
+- [Supported agents](#supported-agents)
+- [Quick start](#quick-start)
+- [CLI](#cli)
+- [Configuration](#configuration)
+- [Architecture](#architecture)
+- [Privacy](#privacy)
+- [Limitations](#limitations)
+- [Development](#development)
+- [Building from source](#building-from-source)
+- [Releases](#releases)
+- [License](#license)
 
 ## Install
 
@@ -89,6 +73,37 @@ tar -xzf mtrx-linux-amd64.tar.gz
 ```
 
 Want to build it yourself? See [Building from source](#building-from-source).
+
+## Why
+
+Most agent dashboards are hosted services that require an account and upload your
+session data to a third party. mtrx is the opposite: it runs entirely on your
+machine, reads the transcripts your agents already write to disk, and gives you
+the same visibility locally and privately.
+
+## Features
+
+- Multi-agent collection: one process tails each agent's local data and normalizes
+  it into a single event stream.
+- Web dashboard: filter by agent and model, view cumulative token usage, cost
+  breakdown, and per-model tables sortable by price or tokens.
+- CLI-first: every metric is also available from the command line.
+- Local SQLite storage: no external services, no network calls.
+- Cross-platform: Linux, macOS, and Windows.
+
+## Supported agents
+
+| Agent        | Status                                                        |
+| ------------ | ------------------------------------------------------------- |
+| OpenCode     | Full local telemetry (tokens, models, sessions)              |
+| Codex        | Full local telemetry (sessions + state_5.sqlite)              |
+| Claude Code  | Transcripts under ~/.claude/projects                          |
+| Cursor       | Sessions only. Cursor does not store token or cost data locally (see Limitations) |
+| aider        | Detected, collector planned                                  |
+| gemini       | Detected, collector planned                                  |
+
+Collectors run in the background every few seconds after the server starts. There
+is nothing to configure per agent.
 
 ## Quick start
 
