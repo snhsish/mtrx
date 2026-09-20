@@ -1,5 +1,10 @@
 *{box-sizing:border-box}
-html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scrollbar-width:thin;scrollbar-color:rgba(74,144,255,.35) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(74,144,255,.28);border-radius:999px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(74,144,255,.5);background-clip:content-box;border:2px solid transparent}
+::-webkit-scrollbar-corner{background:transparent}
 :root{
   --bg:#020b22;
   --bg2:#041233;
