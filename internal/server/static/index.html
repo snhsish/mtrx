@@ -54,8 +54,6 @@ h1 small{font-weight:500;color:var(--muted);font-size:15px;letter-spacing:0;marg
 .panel-head h3{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8fb8f5;margin:0;display:flex;align-items:center;gap:9px}
 .h-icon{width:24px;height:24px;border-radius:50%;background:rgba(47,123,255,.25);border:1px solid rgba(74,160,255,.35);display:inline-flex;align-items:center;justify-content:center;color:#5aa2ff;font-size:13px;font-weight:800}
 .h-icon-cube{border-radius:7px}
-.panel-link{font-size:12.5px;font-weight:600;color:#6ea8f5;white-space:nowrap}
-.panel-link:hover{color:#a9ccff}
 .stats-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .stat{position:relative;overflow:hidden;background:linear-gradient(180deg,rgba(8,24,60,.9),rgba(3,12,34,.95));border:1px solid var(--border);border-radius:12px;padding:14px 14px 34px;display:flex;flex-direction:column;gap:2px;min-height:118px}
 .stat-top{display:flex;gap:12px;align-items:flex-start}
@@ -105,7 +103,7 @@ td b{font-weight:800}
       <label for="range">Range</label>
       <div class="select-wrap">
         <span class="select-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-        <select id="range"><option value="1m">1 month</option><option value="3m">3 months</option><option value="6m">6 months</option><option value="1y" selected>1 year</option><option value="custom">Custom</option></select>
+        <select id="range"><option value="1d">1 day</option><option value="3d">3 days</option><option value="1w">1 week</option><option value="1m">1 month</option><option value="3m">3 months</option><option value="6m">6 months</option><option value="1y" selected>1 year</option><option value="custom">Custom</option></select>
         <span class="select-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
       </div>
       <div class="custom-dates">
@@ -137,14 +135,12 @@ td b{font-weight:800}
   <section id="tokens-card" class="panel">
     <div class="panel-head">
       <h3><span class="h-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="10" width="4" height="10" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="16" y="13" width="4" height="7" rx="1"/></svg></span> Cumulative token usage</h3>
-      <a class="panel-link" href="#" onclick="return false">View trends <span aria-hidden="true">→</span></a>
     </div>
     <div id="tokens"><div class="empty">loading…</div></div>
   </section>
   <section id="cost-card" class="panel">
     <div class="panel-head">
       <h3><span class="h-icon h-icon-dollar" aria-hidden="true">$</span> Cost breakdown</h3>
-      <a class="panel-link" href="#" onclick="return false">View details <span aria-hidden="true">→</span></a>
     </div>
     <div id="cost"><div class="empty">No cost data</div></div>
   </section>
@@ -163,7 +159,7 @@ td b{font-weight:800}
 </div>
 <script>function j(u){return fetch(u).then(r=>r.json())}
 function qs(o){const p=new URLSearchParams();for(const[k,v]of Object.entries(o))if(v)p.set(k,v);return p.toString()?'?'+p.toString():''}
-function rangeDates(v){const n=new Date();let f=null,t=n;if(v==='1m')f=new Date(n);else if(v==='3m')f=new Date(n);else if(v==='6m')f=new Date(n);else if(v==='1y')f=new Date(n);if(v==='1m')f.setMonth(f.getMonth()-1);if(v==='3m')f.setMonth(f.getMonth()-3);if(v==='6m')f.setMonth(f.getMonth()-6);if(v==='1y')f.setFullYear(f.getFullYear()-1);if(v==='custom'){const cf=document.getElementById('customFrom').value,ct=document.getElementById('customTo').value;return{from:cf?new Date(cf).toISOString():'',to:ct?new Date(new Date(ct).getTime()+86400000-1).toISOString():new Date().toISOString()}}if(!f)return{from:'',to:''};return{from:f.toISOString(),to:t.toISOString()}}
+function rangeDates(v){const n=new Date();let f=null,t=n;if(v==='1d')f=new Date(n);else if(v==='3d')f=new Date(n);else if(v==='1w')f=new Date(n);else if(v==='1m')f=new Date(n);else if(v==='3m')f=new Date(n);else if(v==='6m')f=new Date(n);else if(v==='1y')f=new Date(n);if(v==='1d')f.setDate(f.getDate()-1);if(v==='3d')f.setDate(f.getDate()-3);if(v==='1w')f.setDate(f.getDate()-7);if(v==='1m')f.setMonth(f.getMonth()-1);if(v==='3m')f.setMonth(f.getMonth()-3);if(v==='6m')f.setMonth(f.getMonth()-6);if(v==='1y')f.setFullYear(f.getFullYear()-1);if(v==='custom'){const cf=document.getElementById('customFrom').value,ct=document.getElementById('customTo').value;return{from:cf?new Date(cf).toISOString():'',to:ct?new Date(new Date(ct).getTime()+86400000-1).toISOString():new Date().toISOString()}}if(!f)return{from:'',to:''};return{from:f.toISOString(),to:t.toISOString()}}
 function currentFilters(){const r=document.getElementById('range').value,d=rangeDates(r);return{from:d.from,to:d.to,agent:document.getElementById('agent').value,model:document.getElementById('model').value}}
 function fmt(n){return Number(n).toLocaleString()}
 function fmtCompact(n){n=Number(n)||0;if(n>=1e9){const v=n/1e9;return(v>=10?v.toFixed(0):v.toFixed(1).replace(/\.0$/,''))+'B'}if(n>=1e6){const v=n/1e6;return(v>=10?v.toFixed(0):v.toFixed(1).replace(/\.0$/,''))+'M'}if(n>=1e3){const v=n/1e3;return(v>=10?v.toFixed(0):v.toFixed(1).replace(/\.0$/,''))+'K'}return fmt(n)}
