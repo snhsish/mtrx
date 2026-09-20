@@ -11,7 +11,7 @@ OpenCode, Cursor, and more), stores it in a local database, and serves a dashboa
 to explore token usage, cost estimates, and model breakdowns. Nothing leaves your
 machine. No accounts, no cloud, no uploaded session data.
 
-<img width="1144" height="979" alt="mtrx dashboard preview" src="https://github.com/user-attachments/assets/a468e95a-aede-45cd-aaf3-8c3616b14e65" />
+<img width="1144" height="979" alt="mtrx dashboard preview" src="assets/preview.png" />
 
 ## Contents
 
