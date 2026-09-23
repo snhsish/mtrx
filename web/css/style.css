@@ -41,6 +41,10 @@ h1 small{font-weight:500;color:var(--muted);font-size:15px;letter-spacing:0;marg
 .filters select:focus{border-color:#4aa0ff;box-shadow:0 0 0 2px rgba(74,160,255,.25)}
 .custom-dates{display:flex;gap:8px}
 .custom-dates input{min-width:0!important;padding-left:12px!important;padding-right:12px!important}
+.field-reset{flex:0 0 auto!important;min-width:0!important;max-width:none!important;justify-content:flex-end}
+.btn-reset{font-family:'Manrope',sans-serif;background:rgba(2,10,30,.75);color:#9dbdf0;border:1px solid var(--border-strong);border-radius:10px;padding:0 18px;font-size:13px;font-weight:700;height:42px;line-height:40px;white-space:nowrap;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
+.btn-reset:hover:not(:disabled){color:#fff;border-color:#4aa0ff;background:rgba(47,123,255,.2)}
+.btn-reset:disabled{opacity:.4;cursor:default}
 .filters-meta{text-align:right;font-size:12.5px;font-weight:600;color:#9dbdf0;line-height:1.5}
 .filters-meta span{color:#6d90c6}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:0 0 18px}

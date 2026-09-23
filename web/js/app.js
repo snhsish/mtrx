@@ -1,5 +1,15 @@
 function j(u){return fetch(u).then(r=>r.json())}
 function qs(o){const p=new URLSearchParams();for(const[k,v]of Object.entries(o))if(v)p.set(k,v);return p.toString()?'?'+p.toString():''}
+var FILTER_KEY='mtrx.filters.v1';
+var DEFAULT_FILTERS={range:'1y',customFrom:'',customTo:'',agent:'',model:''};
+var ALLOWED_RANGES=['1d','3d','1w','1m','3m','6m','1y','custom'];
+var pendingAgent=null;var pendingModel=null;
+function loadStoredFilters(){try{var raw=localStorage.getItem(FILTER_KEY);if(!raw)return Object.assign({},DEFAULT_FILTERS);var p=JSON.parse(raw)||{};var o=Object.assign({},DEFAULT_FILTERS);if(ALLOWED_RANGES.indexOf(p.range)>=0)o.range=p.range;if(typeof p.customFrom==='string')o.customFrom=p.customFrom;if(typeof p.customTo==='string')o.customTo=p.customTo;if(typeof p.agent==='string')o.agent=p.agent;if(typeof p.model==='string')o.model=p.model;return o}catch(e){return Object.assign({},DEFAULT_FILTERS)}}
+function readFilterDOM(){return{range:document.getElementById('range').value,customFrom:document.getElementById('customFrom').value,customTo:document.getElementById('customTo').value,agent:document.getElementById('agent').value,model:document.getElementById('model').value}}
+function saveFilters(){try{localStorage.setItem(FILTER_KEY,JSON.stringify(readFilterDOM()))}catch(e){}updateResetState()}
+function updateCustomVisibility(){var c=document.getElementById('range').value==='custom';document.getElementById('customFromWrap').style.display=c?'':'none';document.getElementById('customToWrap').style.display=c?'':'none'}
+function setSelectIfExists(id,v){var s=document.getElementById(id);if(!s)return false;if(!v){s.value='';return true}var opts=Array.prototype.slice.call(s.options);for(var i=0;i<opts.length;i++){if(opts[i].value===v){s.value=v;return true}}return false}
+function updateResetState(){var b=document.getElementById('resetFilters');if(!b)return;try{var cur=readFilterDOM();var dirty=cur.range!==DEFAULT_FILTERS.range||cur.customFrom!==DEFAULT_FILTERS.customFrom||cur.customTo!==DEFAULT_FILTERS.customTo||cur.agent!==DEFAULT_FILTERS.agent||cur.model!==DEFAULT_FILTERS.model;b.disabled=!dirty}catch(e){}}
 function rangeDates(v){const n=new Date();let f=null,t=n;if(v==='1d')f=new Date(n);else if(v==='3d')f=new Date(n);else if(v==='1w')f=new Date(n);else if(v==='1m')f=new Date(n);else if(v==='3m')f=new Date(n);else if(v==='6m')f=new Date(n);else if(v==='1y')f=new Date(n);if(v==='1d')f.setDate(f.getDate()-1);if(v==='3d')f.setDate(f.getDate()-3);if(v==='1w')f.setDate(f.getDate()-7);if(v==='1m')f.setMonth(f.getMonth()-1);if(v==='3m')f.setMonth(f.getMonth()-3);if(v==='6m')f.setMonth(f.getMonth()-6);if(v==='1y')f.setFullYear(f.getFullYear()-1);if(v==='custom'){const cf=document.getElementById('customFrom').value,ct=document.getElementById('customTo').value;return{from:cf?new Date(cf).toISOString():'',to:ct?new Date(new Date(ct).getTime()+86400000-1).toISOString():new Date().toISOString()}}if(!f)return{from:'',to:''};return{from:f.toISOString(),to:t.toISOString()}}
 function currentFilters(){const r=document.getElementById('range').value,d=rangeDates(r);return{from:d.from,to:d.to,agent:document.getElementById('agent').value,model:document.getElementById('model').value}}
 function fmt(n){return Number(n).toLocaleString()}
@@ -49,18 +59,21 @@ function loadAll(){
  j('/api/v1/metrics/models'+q).then(d=>{modelData=d||[];renderModels()}).catch(()=>{})
 }
 function populateFilters(){
- j('/api/v1/meta/agents').then(a=>{const s=document.getElementById('agent');const cur=s.value;s.innerHTML='<option value="">All harnesses</option>';a.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o)});if(cur&&[...s.options].some(o=>o.value===cur))s.value=cur}).catch(()=>{});
- j('/api/v1/meta/models').then(a=>{const s=document.getElementById('model');const cur=s.value;s.innerHTML='<option value="">All models</option>';a.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=formatModel(v);s.appendChild(o)});if(cur&&[...s.options].some(o=>o.value===cur))s.value=cur}).catch(()=>{})
+ j('/api/v1/meta/agents').then(a=>{const s=document.getElementById('agent');const cur=s.value||pendingAgent;s.innerHTML='<option value="">All harnesses</option>';(a||[]).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o)});var want=cur||pendingAgent;if(want&&setSelectIfExists('agent',want)){pendingAgent=null;if(cur!==document.getElementById('agent').value)loadAll()}else if(cur&&setSelectIfExists('agent',cur)){}updateResetState()}).catch(()=>{});
+ j('/api/v1/meta/models').then(a=>{const s=document.getElementById('model');const cur=s.value||pendingModel;s.innerHTML='<option value="">All models</option>';(a||[]).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=formatModel(v);s.appendChild(o)});var want=cur||pendingModel;if(want&&setSelectIfExists('model',want)){pendingModel=null;if(cur!==document.getElementById('model').value)loadAll()}else if(cur&&setSelectIfExists('model',cur)){}updateResetState()}).catch(()=>{})
 }
-document.getElementById('range').addEventListener('change',e=>{const c=e.target.value==='custom';document.getElementById('customFromWrap').style.display=c?'':'none';document.getElementById('customToWrap').style.display=c?'':'none';if(!c)loadAll()});
-document.getElementById('customFrom').addEventListener('change',()=>{if(document.getElementById('range').value==='custom')loadAll()});
-document.getElementById('customTo').addEventListener('change',()=>{if(document.getElementById('range').value==='custom')loadAll()});
-document.getElementById('agent').addEventListener('change',loadAll);
-document.getElementById('model').addEventListener('change',loadAll);
+function resetFilters(){try{localStorage.removeItem(FILTER_KEY)}catch(e){}pendingAgent=null;pendingModel=null;document.getElementById('range').value=DEFAULT_FILTERS.range;document.getElementById('customFrom').value='';document.getElementById('customTo').value='';document.getElementById('agent').value='';document.getElementById('model').value='';updateCustomVisibility();saveFilters();populateFilters();loadAll()}
+function restoreStoredFilters(){var s=loadStoredFilters();document.getElementById('range').value=s.range;document.getElementById('customFrom').value=s.customFrom||'';document.getElementById('customTo').value=s.customTo||'';pendingAgent=s.agent||null;pendingModel=s.model||null;if(s.agent)setSelectIfExists('agent',s.agent);if(s.model)setSelectIfExists('model',s.model);updateCustomVisibility();updateResetState()}
+document.getElementById('range').addEventListener('change',()=>{updateCustomVisibility();saveFilters();if(document.getElementById('range').value!=='custom')loadAll()});
+document.getElementById('customFrom').addEventListener('change',()=>{saveFilters();if(document.getElementById('range').value==='custom')loadAll()});
+document.getElementById('customTo').addEventListener('change',()=>{saveFilters();if(document.getElementById('range').value==='custom')loadAll()});
+document.getElementById('agent').addEventListener('change',()=>{pendingAgent=null;saveFilters();loadAll()});
+document.getElementById('model').addEventListener('change',()=>{pendingModel=null;saveFilters();loadAll()});
 
 document.querySelectorAll('th[data-sort]').forEach(th=>{th.addEventListener('click',()=>{const k=th.dataset.sort;if(sortKey===k)sortDir=sortDir==='asc'?'desc':'asc';else{sortKey=k;sortDir=k==='model'||k==='calls'?'asc':'desc'}renderModels()})});
 var ms=document.getElementById('modelSearch');if(ms)ms.addEventListener('input',renderModels);
-populateFilters();loadAll();
+var rb=document.getElementById('resetFilters');if(rb)rb.addEventListener('click',resetFilters);
+restoreStoredFilters();populateFilters();loadAll();
 setInterval(()=>{loadAll();populateFilters()},10000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAll()});
 try{var es=new EventSource('/api/v1/live');es.onopen=()=>{const d=document.querySelector('#live i');if(d)d.style.background='#22e584'};es.onmessage=()=>loadAll();es.onerror=()=>{const d=document.querySelector('#live i');if(d)d.style.background='#71717a'}}catch(e){}
