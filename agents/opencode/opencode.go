@@ -107,13 +107,49 @@ func (a *Adapter) Collect(ctx context.Context, src agents.Source) ([]events.Even
 	return out, scanner.Err()
 }
 
+func toTime(v int64) time.Time {
+	if v <= 0 {
+		return time.Time{}
+	}
+	if v > 1e14 {
+		return time.Unix(0, v*int64(time.Millisecond)).UTC()
+	}
+	if v > 1e12 {
+		return time.UnixMilli(v).UTC()
+	}
+	if v > 1e9 {
+		return time.Unix(v, 0).UTC()
+	}
+	return time.Unix(v, 0).UTC()
+}
+
+func normalizeModel(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return ""
+	}
+	if !strings.HasPrefix(s, "{") {
+		return s
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
+		return s
+	}
+	for _, k := range []string{"id", "model", "model_name", "name"} {
+		if v, _ := m[k].(string); v != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return s
+}
+
 func collectDB(path string) ([]events.Event, error) {
 	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, time_created, agent, model, tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, tokens_cache_write, cost FROM session WHERE tokens_input>0 OR tokens_output>0`)
+	rows, err := db.Query(`SELECT id, time_created, time_updated, agent, model, tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, tokens_cache_write, cost FROM session WHERE tokens_input>0 OR tokens_output>0`)
 	if err != nil {
 		return nil, err
 	}
@@ -121,29 +157,31 @@ func collectDB(path string) ([]events.Event, error) {
 	var out []events.Event
 	for rows.Next() {
 		var id, agent, model sql.NullString
-		var tCreated int64
+		var tCreated, tUpdated sql.NullInt64
 		var tin, tout, treason, tread, twrite sql.NullInt64
 		var cost sql.NullFloat64
-		if err := rows.Scan(&id, &tCreated, &agent, &model, &tin, &tout, &treason, &tread, &twrite, &cost); err != nil {
+		if err := rows.Scan(&id, &tCreated, &tUpdated, &agent, &model, &tin, &tout, &treason, &tread, &twrite, &cost); err != nil {
 			continue
 		}
-		ts := time.UnixMilli(tCreated).UTC()
-		if tCreated > 1e12 {
-			ts = time.UnixMilli(tCreated).UTC()
-		} else if tCreated > 1e9 {
-			ts = time.Unix(int64(tCreated), 0).UTC()
+		ts := toTime(tUpdated.Int64)
+		if ts.IsZero() {
+			ts = toTime(tCreated.Int64)
 		}
 		if ts.IsZero() {
 			ts = time.Now().UTC()
+		}
+		normalized := normalizeModel(model.String)
+		if normalized == "" {
+			normalized = "unknown"
 		}
 		payloadMap := map[string]any{
 			"input": tin.Int64, "output": tout.Int64, "input_tokens": tin.Int64, "output_tokens": tout.Int64,
 			"reasoning": treason.Int64, "reasoning_tokens": treason.Int64,
 			"cached_input": tread.Int64, "cache_read": tread.Int64, "cache_write": twrite.Int64,
-			"model": model.String, "cost": cost.Float64,
+			"model": normalized, "model_raw": model.String, "cost": cost.Float64,
 		}
 		pb, _ := json.Marshal(payloadMap)
-		rawMap := map[string]any{"session_id": id.String, "tokens": payloadMap, "model": model.String}
+		rawMap := map[string]any{"session_id": id.String, "tokens": payloadMap, "model": normalized, "model_raw": model.String}
 		rawB, _ := json.Marshal(rawMap)
 		evID := "opencode_sess_" + id.String
 		out = append(out, events.Event{

@@ -66,7 +66,7 @@ func (c *Collector) collectOnce(ctx context.Context) error {
 					proj = ev.Project.Path
 				}
 				ts := ev.Timestamp.UTC().Format(time.RFC3339)
-				_, _ = c.db.Exec(`INSERT OR IGNORE INTO events(id,type,timestamp,agent,session,project,payload,raw) VALUES(?,?,?,?,?,?,?,?)`,
+				_, _ = c.db.Exec(`INSERT INTO events(id,type,timestamp,agent,session,project,payload,raw) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET type=excluded.type, timestamp=excluded.timestamp, agent=excluded.agent, session=excluded.session, project=excluded.project, payload=excluded.payload, raw=excluded.raw`,
 					ev.ID, string(ev.Type), ts, agent, sess, proj, payload, string(raw))
 			}
 		}

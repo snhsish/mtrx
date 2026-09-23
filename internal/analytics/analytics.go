@@ -4,7 +4,85 @@ import (
 	"database/sql"
 	"encoding/json"
 	"sort"
+	"strings"
 )
+
+func normalizeModel(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return ""
+	}
+	if !strings.HasPrefix(s, "{") {
+		return s
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
+		return s
+	}
+	for _, k := range []string{"id", "model", "model_name", "name"} {
+		if v, _ := m[k].(string); strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return s
+}
+
+func modelFromMap(p map[string]any) string {
+	if p == nil {
+		return ""
+	}
+	if v, _ := p["model"].(string); v != "" {
+		if n := normalizeModel(v); n != "" {
+			return n
+		}
+	}
+	if v, _ := p["model_name"].(string); v != "" {
+		if n := normalizeModel(v); n != "" {
+			return n
+		}
+	}
+	return ""
+}
+
+func rowInput(p map[string]any) int64 {
+	v := toInt64(p["input"])
+	if v == 0 {
+		v = toInt64(p["input_tokens"])
+	}
+	return v
+}
+
+func rowOutput(p map[string]any) int64 {
+	v := toInt64(p["output"])
+	if v == 0 {
+		v = toInt64(p["output_tokens"])
+	}
+	return v
+}
+
+func rowCached(p map[string]any) int64 {
+	v := toInt64(p["cached_input"])
+	if v == 0 {
+		v = toInt64(p["cache_read"])
+	}
+	return v
+}
+
+func rowReason(p map[string]any) int64 {
+	v := toInt64(p["reasoning"])
+	if v == 0 {
+		v = toInt64(p["reasoning_tokens"])
+	}
+	return v
+}
+
+func rowCost(p map[string]any) float64 {
+	v := toFloat64(p["cost"])
+	if v == 0 {
+		v = toFloat64(p["price"])
+	}
+	return v
+}
 
 type Overview struct {
 	Events   int64 `json:"events"`
@@ -161,6 +239,9 @@ func TokensByDayFiltered(db *sql.DB, f Filter) ([]TokenBucket, error) {
 				}
 			}
 		}
+		if f.Model != "" && modelFromMap(p) != normalizeModel(f.Model) {
+			continue
+		}
 		day := ts.String
 		if len(day) >= 10 {
 			day = day[:10]
@@ -170,30 +251,17 @@ func TokensByDayFiltered(db *sql.DB, f Filter) ([]TokenBucket, error) {
 			b = &TokenBucket{Bucket: day}
 			byDay[day] = b
 		}
-		b.Input += toInt64(p["input"])
-		b.Output += toInt64(p["output"])
-		if b.Input == 0 {
-			b.Input += toInt64(p["input_tokens"])
+		in := rowInput(p)
+		outv := rowOutput(p)
+		cached := rowCached(p)
+		reason := rowReason(p)
+		b.Input += in
+		b.Output += outv
+		b.Total += in + outv + cached + reason
+		if in+outv+cached+reason == 0 {
+			b.Total += toInt64(p["total"])
 		}
-		if b.Output == 0 {
-			b.Output += toInt64(p["output_tokens"])
-		}
-		cached := toInt64(p["cached_input"])
-		if cached == 0 {
-			cached = toInt64(p["cache_read"])
-		}
-		reason := toInt64(p["reasoning"])
-		if reason == 0 {
-			reason = toInt64(p["reasoning_tokens"])
-		}
-		b.Total = b.Input + b.Output + cached + reason
-		if b.Total == 0 {
-			b.Total = toInt64(p["total"])
-		}
-		b.Cost += toFloat64(p["cost"])
-		if b.Cost == 0 {
-			b.Cost += toFloat64(p["price"])
-		}
+		b.Cost += rowCost(p)
 		b.Count++
 	}
 	var out []TokenBucket
@@ -290,6 +358,9 @@ func TokensByHourFiltered(db *sql.DB, f Filter) ([]HourlyTokenBucket, error) {
 				}
 			}
 		}
+		if f.Model != "" && modelFromMap(p) != normalizeModel(f.Model) {
+			continue
+		}
 		hour := ts.String
 		if len(hour) >= 13 {
 			hour = hour[:13] + ":00"
@@ -299,30 +370,17 @@ func TokensByHourFiltered(db *sql.DB, f Filter) ([]HourlyTokenBucket, error) {
 			b = &HourlyTokenBucket{Bucket: hour}
 			byHour[hour] = b
 		}
-		b.Input += toInt64(p["input"])
-		b.Output += toInt64(p["output"])
-		if b.Input == 0 {
-			b.Input += toInt64(p["input_tokens"])
+		in := rowInput(p)
+		outv := rowOutput(p)
+		cached := rowCached(p)
+		reason := rowReason(p)
+		b.Input += in
+		b.Output += outv
+		b.Total += in + outv + cached + reason
+		if in+outv+cached+reason == 0 {
+			b.Total += toInt64(p["total"])
 		}
-		if b.Output == 0 {
-			b.Output += toInt64(p["output_tokens"])
-		}
-		cached := toInt64(p["cached_input"])
-		if cached == 0 {
-			cached = toInt64(p["cache_read"])
-		}
-		reason := toInt64(p["reasoning"])
-		if reason == 0 {
-			reason = toInt64(p["reasoning_tokens"])
-		}
-		b.Total = b.Input + b.Output + cached + reason
-		if b.Total == 0 {
-			b.Total = toInt64(p["total"])
-		}
-		b.Cost += toFloat64(p["cost"])
-		if b.Cost == 0 {
-			b.Cost += toFloat64(p["price"])
-		}
+		b.Cost += rowCost(p)
 		b.Count++
 	}
 	var out []HourlyTokenBucket
@@ -486,10 +544,7 @@ func ModelsStatsFiltered(db *sql.DB, f Filter) ([]ModelStat, error) {
 			}
 			hasTokens = true
 		}
-		model, _ := p["model"].(string)
-		if model == "" {
-			model, _ = p["model_name"].(string)
-		}
+		model := modelFromMap(p)
 		if model == "" {
 			if !hasTokens {
 				continue
@@ -502,28 +557,19 @@ func ModelsStatsFiltered(db *sql.DB, f Filter) ([]ModelStat, error) {
 			m[model] = s
 		}
 		s.Calls++
-		s.Input += toInt64(p["input"])
-		if s.Input == 0 {
-			s.Input += toInt64(p["input_tokens"])
-		}
-		s.Output += toInt64(p["output"])
-		if s.Output == 0 {
-			s.Output += toInt64(p["output_tokens"])
-		}
-		if s.Input == 0 && s.Output == 0 {
+		s.Input += rowInput(p)
+		s.Output += rowOutput(p)
+		if rowInput(p) == 0 && rowOutput(p) == 0 {
 			if t, ok := p["tokens"].(map[string]any); ok {
 				s.Input += toInt64(t["input"])
 				s.Output += toInt64(t["output"])
 			}
 		}
-		s.Cost += toFloat64(p["cost"])
-		if toFloat64(p["cost"]) == 0 {
-			s.Cost += toFloat64(p["price"])
-		}
+		s.Cost += rowCost(p)
 	}
 	var out []ModelStat
 	for _, v := range m {
-		if f.Model != "" && v.Model != f.Model {
+		if f.Model != "" && v.Model != normalizeModel(f.Model) {
 			continue
 		}
 		if v.Calls == 0 {
@@ -574,9 +620,7 @@ func DistinctModels(db *sql.DB) ([]string, error) {
 			}
 			var m map[string]any
 			_ = json.Unmarshal([]byte(p.String), &m)
-			if v, _ := m["model"].(string); v != "" {
-				set[v] = struct{}{}
-			} else if v, _ := m["model_name"].(string); v != "" {
+			if v := modelFromMap(m); v != "" {
 				set[v] = struct{}{}
 			}
 		}
@@ -591,14 +635,21 @@ func DistinctModels(db *sql.DB) ([]string, error) {
 		return out, nil
 	}
 	defer rows.Close()
-	var out []string
+	set := map[string]struct{}{}
 	for rows.Next() {
 		var s sql.NullString
 		_ = rows.Scan(&s)
 		if s.Valid && s.String != "" {
-			out = append(out, s.String)
+			if n := normalizeModel(s.String); n != "" {
+				set[n] = struct{}{}
+			}
 		}
 	}
+	var out []string
+	for k := range set {
+		out = append(out, k)
+	}
+	sort.Strings(out)
 	if out == nil {
 		out = []string{}
 	}
@@ -621,8 +672,9 @@ func buildWhere(f Filter, includeModel bool) (string, []any) {
 		args = append(args, f.Agent)
 	}
 	if includeModel && f.Model != "" {
-		q += ` AND COALESCE(json_extract(payload,'$.model'), json_extract(payload,'$.model_name'), '') = ?`
-		args = append(args, f.Model)
+		// Model filtering is done in Go (see modelFromMap) so JSON-encoded
+		// variants like {"id":"mimo-...","providerID":"..."} collapse to one
+		// bucket. Filtering in SQL would miss old rows.
 	}
 	return q, args
 }
